@@ -1,18 +1,36 @@
 /* Request library */
 var http = require('http');
-
+fs = require('fs');
+var fileReader = require('./readSettings')
 /* initialize new variable for the engine */
 var port = 80;
 /* requested variable */
-var n_req = 0;
+global.n_req = 0;
 /* Turn check server */
-var iServer=0;
+global.iServer=0;
 /* list of ports available in the server */
-var ports = [9090,8989,9090];
+global.ports = [];
+global.ipServer =[];
 
+var loadBalanceFile;
 var x = [];
 /* start a proxy server listen */
 var server = http.createServer(onRequest).listen(port);
+
+loadSettings();
+
+var loadBalancer = require('./'+loadBalanceFile)
+
+
+function loadSettings(){
+    var json = JSON.parse(fileReader.readfile());
+    json.hosts.forEach(function(element){
+        ports.push(element.port);
+        ipServer.push(element.ip);
+    });
+    loadBalanceFile = json.loadBalancer;
+}
+
 
 /*
 function for parse cookie inside the header request
@@ -59,14 +77,7 @@ function chooseServerId(session){
 
 }
 
-function loadBalancerF(){
-    if(iServer>=1){
-        iServer=0;
-    }else{
-        iServer++;
-    }
-    return iServer;
-}
+
 
 function onRequest(client_req, client_res) {
     
@@ -114,7 +125,7 @@ function onRequest(client_req, client_res) {
     
     console.log(cookieList['PHPSESSID']);
     var options = {
-        hostname: 'localhost',
+        hostname: ipServer[iServer],
         port: ports[iServer],
         path: client_req.url,
         method: 'GET'
@@ -148,8 +159,9 @@ function onRequest(client_req, client_res) {
     client_req.pipe(connector, {
         end: true
     });
-    loadBalancerF();
+    loadBalancer.loadBalancer();
 }
+
 
 /* Start server with the port setted */
 server.listen(port, function() {

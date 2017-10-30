@@ -1,6 +1,37 @@
 /* Request library */
 var http = require('http');
 fs = require('fs');
+
+
+var WebSocketServer = require('websocket').server;
+
+var serverws = http.createServer(function(request, response) {
+    
+    // Qui possiamo processare la richiesta HTTP
+    // Dal momento che ci interessano solo le WebSocket, non dobbiamo implementare nulla
+});
+serverws.listen(1337, function() { console.log("started server"); });
+ 
+// Creazione del server
+wsServer = new WebSocketServer({
+    httpServer: serverws
+});
+// Gestione degli eventi
+wsServer.on('request', function(request) {
+    var connection = request.accept(null, request.origin);
+ 
+    connection.on('message', function(message) {
+        // Metodo eseguito alla ricezione di un messaggio
+        if (message.type === 'utf8') {
+            // Se il messaggio è una stringa, possiamo leggerlo come segue:
+            console.log('Il messaggio ricevuto è: ' + message.utf8Data);
+        }
+    });
+ 
+    connection.on('close', function(connection) {
+        // Metodo eseguito alla chiusura della connessione
+    });
+});
 var fileReader = require('./readSettings')
 /* initialize new variable for the engine */
 var port = 80;
@@ -120,6 +151,7 @@ function onRequest(client_req, client_res) {
         console.log("non definito il cookie");
         /* cambio server */
         //iServer=loadBalancerF(iServer,x,n_req);
+        loadBalancer.loadBalancer();
     }
     //console.log('header request:'+JSON.stringify(client_req.headers['cookie']));
     
@@ -159,7 +191,7 @@ function onRequest(client_req, client_res) {
     client_req.pipe(connector, {
         end: true
     });
-    loadBalancer.loadBalancer();
+    
 }
 
 

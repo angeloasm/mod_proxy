@@ -16,6 +16,7 @@ echo '<br /><a href="page2.php">page 2</a>';
 // Or maybe pass along the session id, if needed
 echo '<br />'.$_SESSION["animal"];
 ?>
+SERVER 2
 <a href="page2.php">angelo</a>
 </body>
 </html>

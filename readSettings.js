@@ -8,6 +8,12 @@ module.exports ={
         dataFile=fs.readFileSync('./settings.json', 'utf8');
         
         return dataFile;
+    },
+    writeSettingsFile: function(strcontent){
+
+        fs.writeFileSync('./settings.json',strcontent, "utf-8");
+
     }
-   
 }
+
+

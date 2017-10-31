@@ -1,37 +1,18 @@
 /* Request library */
 var http = require('http');
 fs = require('fs');
+'use strict';
+
+let app = require('express')();
+let https = require('http').Server(app);
+let io = require('socket.io')(https);
 
 
-var WebSocketServer = require('websocket').server;
 
-var serverws = http.createServer(function(request, response) {
-    
-    // Qui possiamo processare la richiesta HTTP
-    // Dal momento che ci interessano solo le WebSocket, non dobbiamo implementare nulla
+https.listen(1337, () => {
+  console.log('started on port 8080');
 });
-serverws.listen(1337, function() { console.log("started server"); });
- 
-// Creazione del server
-wsServer = new WebSocketServer({
-    httpServer: serverws
-});
-// Gestione degli eventi
-wsServer.on('request', function(request) {
-    var connection = request.accept(null, request.origin);
- 
-    connection.on('message', function(message) {
-        // Metodo eseguito alla ricezione di un messaggio
-        if (message.type === 'utf8') {
-            // Se il messaggio è una stringa, possiamo leggerlo come segue:
-            console.log('Il messaggio ricevuto è: ' + message.utf8Data);
-        }
-    });
- 
-    connection.on('close', function(connection) {
-        // Metodo eseguito alla chiusura della connessione
-    });
-});
+
 var fileReader = require('./readSettings')
 /* initialize new variable for the engine */
 var port = 80;
@@ -42,7 +23,7 @@ global.iServer=0;
 /* list of ports available in the server */
 global.ports = [];
 global.ipServer =[];
-
+var json;
 var loadBalanceFile;
 var x = [];
 /* start a proxy server listen */
@@ -53,8 +34,12 @@ loadSettings();
 var loadBalancer = require('./'+loadBalanceFile)
 
 
+function saveSettings(){
+    fileReader.writeSettingsFile(JSON.stringify(json));
+}
+
 function loadSettings(){
-    var json = JSON.parse(fileReader.readfile());
+    json = JSON.parse(fileReader.readfile());
     json.hosts.forEach(function(element){
         ports.push(element.port);
         ipServer.push(element.ip);
@@ -160,7 +145,7 @@ function onRequest(client_req, client_res) {
         hostname: ipServer[iServer],
         port: ports[iServer],
         path: client_req.url,
-        method: 'GET'
+        
     };
     console.log("ports:"+iServer)
     
@@ -193,7 +178,33 @@ function onRequest(client_req, client_res) {
     });
     
 }
-
+io.on('connection', (socket) => {
+    console.log('USER CONNECTED');
+    
+    socket.on('disconnect', function(){
+      console.log('USER DISCONNECTED');
+    });
+  
+    socket.on('add-message', (message) => {
+        console.log("ricevo:"+message);
+      io.emit('message', {type:'new-message', text: message});
+    });
+    socket.on('new_server_list', (list) => {
+        console.log("ricevo:"+list);
+        console.log(JSON.parse(list));
+        
+        json = JSON.parse(list);
+        ports.push(json.hosts[ports.length].port);
+        console.log(ports);
+        ipServer.push(json.hosts[ipServer.length].ip);
+        console.log(ipServer);
+        saveSettings();
+    });
+    socket.on('benvenuto', (data) => {
+        console.log("arrivato benvenuto");
+        io.emit('list', {type:'new-message', text: JSON.stringify(json)});
+    });
+  });
 
 /* Start server with the port setted */
 server.listen(port, function() {

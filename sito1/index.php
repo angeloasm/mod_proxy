@@ -19,6 +19,9 @@ echo '<br /><a href="page2.php">page 2</a>';
 echo '<br />'.$_SESSION["animal"];
 ?>
 SERVER 1
+<form method="POST" action="page2.php">
+    <button type="submit">ok</button>
+</form>
 <a href="page2.php">angelo</a>
 </body>
 </html>

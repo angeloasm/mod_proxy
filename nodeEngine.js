@@ -9,7 +9,7 @@ global.fs = require('fs');
 
 let app = require('express')();
 let https = require('http').Server(app);
-let io = require('socket.io')(http);
+let io = require('socket.io')(https);
 
 /* variable for readWrite settings */
 var fileReader = require('./readWriteSettings')
@@ -28,6 +28,11 @@ var settingsJson;
 /* This variable rapresent the path of plug in load balance function */
 var loadBalanceFile;
 
+global.statisticServer =[];
+
+
+
+
 /* start a proxy server listen */
 var server = http.createServer(onRequest).listen(port);
 /**
@@ -37,12 +42,13 @@ loadSettings();
 
 var loadBalancer = require('./'+loadBalanceFile)
 
-global.sessionsLists = [];
+
 /* debug variable for the debugging console 
     false: doesn't print any line
     true: print any line of the session lists.
 */
 var debug = false;
+
 
 
 /**
@@ -75,6 +81,8 @@ function saveSettings(){
 function loadSettings(){
     settingsJson = JSON.parse(fileReader.readfile());
     settingsJson.hosts.forEach(function(element){
+        var item_stat = {"session":0,"request":0};
+        statisticServer.push(item_stat);
         ports.push(element.port);
         ipServer.push(element.ip);
     });
@@ -147,7 +155,9 @@ function onRequest(client_req, client_res) {
     /* variable for cookie session identifier */
     var cookieList = parseCookies(client_req);
     /* item for adding a server when there is a new session established */
-    var item = {"session":'',"index":''} 
+    var item = {"session":'',"index":''};
+    
+   
     /* variable that indicate the found element server into a list of all session */
     var found=0;
     /* log server */
@@ -178,7 +188,7 @@ function onRequest(client_req, client_res) {
             iServer=chooseServerId(cookieList['PHPSESSID']);
         }
         
-        
+        statisticServer[iServer].session++;
         
     }else{
         /* if you don't have any cookie defined inside the request of client, take loadBalancer Algorithm */
@@ -194,11 +204,13 @@ function onRequest(client_req, client_res) {
         port: ports[iServer],
         path: client_req.url
     };
-
-    
+    console.log(statisticServer[iServer]);
+    statisticServer[iServer].request++;
+    console.log("statisticServer["+iServer+"].request="+statisticServer[iServer].request);
     /* adding number of request */
     n_req++; 
 
+    
     /* redirect the client request to the server with options variable */
     var connector = http.request(options, function(serverResponse) {
         // serverResponse must be in pause mode because the server send two response
@@ -245,8 +257,11 @@ io.on('connection', (socket) => {
             console.log(JSON.parse(list));
         
         settingsJson = JSON.parse(list);
+        var item_stat = {"session":0,"request":0};
+        statisticServer.push(item_stat);
         ports.push(settingsJson.hosts[ports.length].port);
         ipServer.push(settingsJson.hosts[ipServer.length].ip);
+        console.log(settingsJson);
         saveSettings();
 
     });
@@ -256,8 +271,11 @@ io.on('connection', (socket) => {
      */
     socket.on('delete-item', function(index){
         ports.splice(index,1);
+        console.log(ports);
         ipServer.splice(index,1);
+        statisticServer.splice(index,1);
         settingsJson.hosts.splice(index,1);
+        console.log(settingsJson);
         saveSettings();
     });
 
@@ -268,6 +286,16 @@ io.on('connection', (socket) => {
         if(debug)
             console.log("arrivato benvenuto");
         io.emit('list', {type:'new-message', text: JSON.stringify(settingsJson)});
+    });
+    /**
+     * 
+     */
+    socket.on('stats', (index) => {
+        console.log(JSON.stringify(statisticServer));
+        
+        if(debug)
+            console.log("get stats for "+index);
+        io.emit('res_stat', {type:'new-message', text: JSON.stringify(statisticServer)});
     });
 
   });

@@ -1,57 +1,92 @@
+/**
+ * Author: Angelo Carraggi ( axc1011 )
+ */
+'use strict';
 /* Request library */
 var http = require('http');
-fs = require('fs');
-'use strict';
+global.fs = require('fs');
+
 
 let app = require('express')();
 let https = require('http').Server(app);
-let io = require('socket.io')(https);
+let io = require('socket.io')(http);
 
-
-
-https.listen(1337, () => {
-  console.log('started on port 8080');
-});
-
-var fileReader = require('./readSettings')
-/* initialize new variable for the engine */
+/* variable for readWrite settings */
+var fileReader = require('./readWriteSettings')
+/* define the port where proxy is available */
 var port = 80;
 /* requested variable */
 global.n_req = 0;
 /* Turn check server */
 global.iServer=0;
-/* list of ports available in the server */
+/* list of ports available in the proxy */
 global.ports = [];
+/* list of ip Server available in the proxy */
 global.ipServer =[];
-var json;
+/* Json of settings file */
+var settingsJson;
+/* This variable rapresent the path of plug in load balance function */
 var loadBalanceFile;
-var x = [];
+
 /* start a proxy server listen */
 var server = http.createServer(onRequest).listen(port);
-
+/**
+ * Load Settings params
+ */
 loadSettings();
 
 var loadBalancer = require('./'+loadBalanceFile)
 
+global.sessionsLists = [];
+/* debug variable for the debugging console 
+    false: doesn't print any line
+    true: print any line of the session lists.
+*/
+var debug = false;
 
+
+/**
+ * Start the server for the web socket communication.
+ */
+https.listen(1337, () => {
+    if(debug)
+        console.log('started on port 8080');
+});
+/************************************
+ * 
+ * Function declared
+ * 
+ ************************************/
+
+
+
+
+/**
+ * Function for save the settings of the proxy web switch
+ * 
+ */
 function saveSettings(){
-    fileReader.writeSettingsFile(JSON.stringify(json));
+    fileReader.writeSettingsFile(JSON.stringify(settingsJson));
 }
 
+/**
+ * Function for load the settings in the proxy web switch
+ */
 function loadSettings(){
-    json = JSON.parse(fileReader.readfile());
-    json.hosts.forEach(function(element){
+    settingsJson = JSON.parse(fileReader.readfile());
+    settingsJson.hosts.forEach(function(element){
         ports.push(element.port);
         ipServer.push(element.ip);
     });
-    loadBalanceFile = json.loadBalancer;
+    loadBalanceFile = settingsJson.loadBalancer;
 }
 
 
-/*
-function for parse cookie inside the header request
-Notice: check only PHPSESSID, in future add new version of ID 
-*/
+/**
+ * Function for parse cookie inside the header request
+ * Notice: check only PHPSESSID, in future add new version of ID 
+ * @param {string} request 
+ */
 function parseCookies (request) {
     var list = {},
         rc = request.headers.cookie;
@@ -64,9 +99,15 @@ function parseCookies (request) {
     return list;
 }
 
+
+/**
+ * This function take the session id from the header request and search it inside the list of session contained in web switch
+ *
+ * @param {string} session 
+ */
 function verifyExistCookie(session){
     var f=0;
-    x.forEach(function(element) {
+    sessionsLists.forEach(function(element) {
         //console.log("element:"+element['session']);
         if(element['session']==session){
             iServer=element['index'];
@@ -78,11 +119,13 @@ function verifyExistCookie(session){
     return f;
 }
 
-
+/**
+ * This function return the number of index belong to these session params.
+ * @param {string} session 
+ */
 function chooseServerId(session){
     var server=0;
-    x.forEach(function(element) {
-        console.log("element:"+element['session']);
+    sessionsLists.forEach(function(element) {
         if(element['session']==session){
             server=element['index'];
             return;
@@ -94,7 +137,11 @@ function chooseServerId(session){
 }
 
 
-
+/**
+ * 
+ * @param {*} client_req 
+ * @param {*} client_res 
+ */
 function onRequest(client_req, client_res) {
     
     /* variable for cookie session identifier */
@@ -104,109 +151,131 @@ function onRequest(client_req, client_res) {
     /* variable that indicate the found element server into a list of all session */
     var found=0;
     /* log server */
-    //console.log('serve: ' + client_req.url);
-    console.log('n_req ='+n_req+' ports server:'+ ports[iServer]);
+    if(debug)
+        console.log('serve: ' + client_req.url);
+    if(debug)
+        console.log('n_req ='+n_req+' ports server:'+ ports[iServer]);
     
    // console.log("res:"+client_res.getHeaderNames());
     /* if exists php session */
     if(cookieList['PHPSESSID']!=undefined){
-        /* update item */
+        /* update item with session and id setted */
         item['session']= cookieList['PHPSESSID'];
         item['index']=iServer;
         
         /* verify if exists in the list this session */
         found=verifyExistCookie(cookieList['PHPSESSID']);
 
-        //console.log("found var:"+found);
         /* if not exists inside my list */
         if(found==0){
-            console.log("aggiungo item");
+            /* adding item inside the session lists array */
+            if(debug)
+                console.log("aggiungo item");
             //console.log(item);
-            //console.log("sostituisco iServer: "+cookieList['PHPSESSID']);
-            x.push(item);
-            
-            
+            sessionsLists.push(item);
         }else{
+            /* if we have founded the session choose the related server */ 
             iServer=chooseServerId(cookieList['PHPSESSID']);
         }
         
         
         
     }else{
-        console.log("non definito il cookie");
-        /* cambio server */
-        //iServer=loadBalancerF(iServer,x,n_req);
+        /* if you don't have any cookie defined inside the request of client, take loadBalancer Algorithm */
+        if(debug)
+            console.log("cookie doesn't defined");
         loadBalancer.loadBalancer();
     }
     //console.log('header request:'+JSON.stringify(client_req.headers['cookie']));
     
-    console.log(cookieList['PHPSESSID']);
+    /* declare options for redirect the request to another server in the list */
     var options = {
         hostname: ipServer[iServer],
         port: ports[iServer],
-        path: client_req.url,
-        
+        path: client_req.url
     };
-    console.log("ports:"+iServer)
-    
-    n_req++; 
-   /* var proxy = http.request(options, function (res) {
-        console.log(JSON.stringify(res.headers));
-        client_res.headers = res.headers;
-        res.pipe(client_res, {
-            end: true
-        }
-        )
-        
-        
-             
-    });
-    */
 
+    
+    /* adding number of request */
+    n_req++; 
+
+    /* redirect the client request to the server with options variable */
     var connector = http.request(options, function(serverResponse) {
+        // serverResponse must be in pause mode because the server send two response
         serverResponse.pause();
-        client_res.writeHeader(serverResponse.statusCode, serverResponse.headers);
+        // write header of response, for passing at the very client the set-cookie request 
+        client_res.writeHeader(serverResponse.statusCode, serverResponse.headers); 
+        // pipe the response content 
         serverResponse.pipe(client_res,{
             end: true
         });
+        // resume the normally flow of request
         serverResponse.resume();
     });
     
-
+    /**
+     * Pipe the request from client to server. ( obviously contains the session field ).
+     */
     client_req.pipe(connector, {
         end: true
     });
     
 }
+
+
+/**
+ * Set up of the communication protocol between client and server, using websocket.
+ */
 io.on('connection', (socket) => {
-    console.log('USER CONNECTED');
-    
+    if(debug)
+        console.log('USER CONNECTED');
+    /**
+     * Manage when the client close the connection. 
+     */
     socket.on('disconnect', function(){
-      console.log('USER DISCONNECTED');
+        if(debug)
+            console.log('USER DISCONNECTED');
     });
   
-    socket.on('add-message', (message) => {
-        console.log("ricevo:"+message);
-      io.emit('message', {type:'new-message', text: message});
-    });
+    /**
+     * Manage when the client request the list of server associated to this web switch.
+     */
     socket.on('new_server_list', (list) => {
-        console.log("ricevo:"+list);
-        console.log(JSON.parse(list));
+        if(debug)
+            console.log(JSON.parse(list));
         
-        json = JSON.parse(list);
-        ports.push(json.hosts[ports.length].port);
-        console.log(ports);
-        ipServer.push(json.hosts[ipServer.length].ip);
-        console.log(ipServer);
+        settingsJson = JSON.parse(list);
+        ports.push(settingsJson.hosts[ports.length].port);
+        ipServer.push(settingsJson.hosts[ipServer.length].ip);
+        saveSettings();
+
+    });
+
+    /**
+     * Manage the deleted item request
+     */
+    socket.on('delete-item', function(index){
+        ports.splice(index,1);
+        ipServer.splice(index,1);
+        settingsJson.hosts.splice(index,1);
         saveSettings();
     });
+
+    /**
+    * This is message, is useful
+    */
     socket.on('benvenuto', (data) => {
-        console.log("arrivato benvenuto");
-        io.emit('list', {type:'new-message', text: JSON.stringify(json)});
+        if(debug)
+            console.log("arrivato benvenuto");
+        io.emit('list', {type:'new-message', text: JSON.stringify(settingsJson)});
     });
+
   });
 
-/* Start server with the port setted */
+/**
+ *  Start server with the port setted
+ */
 server.listen(port, function() {
-    console.log('Listening on ' + port);
+    if(debug)    
+        console.log('Listening on ' + port);
 });

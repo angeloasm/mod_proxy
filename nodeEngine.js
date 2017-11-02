@@ -30,6 +30,7 @@ var loadBalanceFile;
 
 global.statisticServer =[];
 
+var max_session = 150;
 
 var sessionsLists =[];
 
@@ -89,6 +90,25 @@ function loadSettings(){
     loadBalanceFile = settingsJson.loadBalancer;
 }
 
+function garbageSession(){
+    
+   
+    if(sessionsLists.length>1000){
+        var tempmin = sessionsLists[0]['start'];
+        
+        console.log("GARBAGE ACTION");
+       var idx=0;
+        sessionsLists.forEach(function(element){
+            if(Math.round(new Date().getTime()/1000) >= element.start){
+                console.log("GARBAGE: splice id:"+idx+" index:"+sessionsLists[idx]['index']);
+                sessionsLists.splice(idx,1);
+            }
+            idx++;
+        })
+       
+        
+    }
+}
 
 /**
  * Function for parse cookie inside the header request
@@ -127,6 +147,9 @@ function verifyExistCookie(session){
     return f;
 }
 
+
+
+
 /**
  * This function return the number of index belong to these session params.
  * @param {string} session 
@@ -136,10 +159,11 @@ function chooseServerId(session){
     sessionsLists.forEach(function(element) {
         if(element['session']==session){
             server=element['index'];
+            element['age']++;
             return;
         }
     }, this);
-
+    
     return server;
 
 }
@@ -157,6 +181,7 @@ function onRequest(client_req, client_res) {
     /* item for adding a server when there is a new session established */
     var item = {"session":'',"index":''};
     
+    //garbageSession();
    
     /* variable that indicate the found element server into a list of all session */
     var found=0;
@@ -183,10 +208,14 @@ function onRequest(client_req, client_res) {
             /* adding item inside the session lists array */
             if(debug)
                 console.log("aggiungo item");
-            //console.log(item);
+            
+                console.log("aggiungo item");
+                
+                //console.log(item);
             sessionsLists.push(item);
         }else{
             /* if we have founded the session choose the related server */ 
+            
             iServer=chooseServerId(cookieList['PHPSESSID']);
         }
         
@@ -204,28 +233,35 @@ function onRequest(client_req, client_res) {
     var options = {
         hostname: ipServer[iServer],
         port: ports[iServer],
-        path: client_req.url
-    };
-    console.log(statisticServer[iServer]);
+        path: client_req.url,
+        method: 'GET',
+        headers: { }
+        
+        };
+
+    options.headers = client_req.headers;    
+
     statisticServer[iServer].request++;
-    console.log("statisticServer["+iServer+"].request="+statisticServer[iServer].request);
     /* adding number of request */
     n_req++; 
 
-    
+    console.log(options);
+
     /* redirect the client request to the server with options variable */
     var connector = http.request(options, function(serverResponse) {
         // serverResponse must be in pause mode because the server send two response
         serverResponse.pause();
+        console.log(serverResponse.headers);
+        
         if(serverResponse.headers['set-cookie']!=undefined){
         var headerserv = serverResponse.headers['set-cookie'].toString();
-        console.log(headerserv);
         headerserv = headerserv.split(';');
         headerserv.forEach(function(element){
             var s = element.split('=');
             if(s[0]=="PHPSESSID"){
                 item['session']= s[1];
                 item['index']=iServer;
+                item['start'] = Math.round(new Date().getTime()/1000)+6;
                 sessionsLists.push(item);
                 console.log(sessionsLists);
                 statisticServer[iServer].session++;                
@@ -240,6 +276,7 @@ function onRequest(client_req, client_res) {
         });
         // resume the normally flow of request
         serverResponse.resume();
+        
     });
     
     /**

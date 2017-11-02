@@ -31,7 +31,7 @@ var loadBalanceFile;
 global.statisticServer =[];
 
 
-
+var sessionsLists =[];
 
 /* start a proxy server listen */
 var server = http.createServer(onRequest).listen(port);
@@ -167,6 +167,8 @@ function onRequest(client_req, client_res) {
         console.log('n_req ='+n_req+' ports server:'+ ports[iServer]);
     
    // console.log("res:"+client_res.getHeaderNames());
+   console.log('request server port:'+ports[iServer]);
+   
     /* if exists php session */
     if(cookieList['PHPSESSID']!=undefined){
         /* update item with session and id setted */
@@ -188,7 +190,7 @@ function onRequest(client_req, client_res) {
             iServer=chooseServerId(cookieList['PHPSESSID']);
         }
         
-        statisticServer[iServer].session++;
+        
         
     }else{
         /* if you don't have any cookie defined inside the request of client, take loadBalancer Algorithm */
@@ -215,6 +217,21 @@ function onRequest(client_req, client_res) {
     var connector = http.request(options, function(serverResponse) {
         // serverResponse must be in pause mode because the server send two response
         serverResponse.pause();
+        if(serverResponse.headers['set-cookie']!=undefined){
+        var headerserv = serverResponse.headers['set-cookie'].toString();
+        console.log(headerserv);
+        headerserv = headerserv.split(';');
+        headerserv.forEach(function(element){
+            var s = element.split('=');
+            if(s[0]=="PHPSESSID"){
+                item['session']= s[1];
+                item['index']=iServer;
+                sessionsLists.push(item);
+                console.log(sessionsLists);
+                statisticServer[iServer].session++;                
+            }
+        })
+    }
         // write header of response, for passing at the very client the set-cookie request 
         client_res.writeHeader(serverResponse.statusCode, serverResponse.headers); 
         // pipe the response content 

@@ -8,6 +8,7 @@
  *  Each item is a JSON variable that have:
  *      - session: String that define the session id
  *      - index: Int that define the element from array.
+ * 
  * exports.laodBalancer = function(){
  *      // Write the code of policy
  * }
@@ -18,11 +19,14 @@
  * This Module is a plug in that define 
  * the policy for load balancer.
  */
-exports.loadBalancer = function(){
-    if(iServer>=ports.length-1){
-        iServer=0;
-    }else{
-        iServer++;
+
+module.exports={
+    loadBalancer: function(){
+        if(iServer>=ports.length-1){
+            iServer=0;
+        }else{
+            iServer++;
+        }
+        return iServer;
     }
-    return iServer;
 }

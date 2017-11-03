@@ -1,17 +1,13 @@
 import { Observable } from 'rxjs/Observable';
 import * as io from 'socket.io-client';
 
-export class GraphicsServices {
+export class ManagerServices {
 
   private url = 'http://localhost:1337';
-  private socket;
+  public socket;
   public listServers;
   id;
   
-  sendMessage(message) {
-    this.socket.emit('add-message', message);
-    console.log("MESSAGE SENT");
-  }
   sendDeleteItem(index){
     this.socket.emit('delete-item',index);
     console.log('Delete SENT');
@@ -24,6 +20,36 @@ export class GraphicsServices {
   sendIdStats(ids){
     console.log(ids);
     this.socket.emit('stats',ids);
+  }
+
+  getStatus(){
+    this.socket = io(this.url);
+    
+    let observable = new Observable(observer => {
+      this.socket = io(this.url);
+      this.socket.on('disconnect', function(){
+        observer.next("angelo");
+      });
+      return () => {
+        this.socket.disconnect();
+      }
+    })
+    return observable;
+  }
+
+  getConnected(){
+    this.socket = io(this.url);
+    
+    let observable = new Observable(observer => {
+      this.socket = io(this.url);
+      this.socket.on('connect', function(){
+        observer.next("angelo");
+      });
+      return () => {
+        this.socket.disconnect();
+      }
+    })
+    return observable;
   }
 
   getStats(){
@@ -61,16 +87,5 @@ export class GraphicsServices {
     })
     return observable;
   }
-  getMessages() {
-    let observable = new Observable(observer => {
-      this.socket = io(this.url);
-      this.socket.on('message', (data) => {
-        observer.next(data);
-      });
-      return () => {
-        this.socket.disconnect();
-      }
-    })
-    return observable;
-  }
+  
 }

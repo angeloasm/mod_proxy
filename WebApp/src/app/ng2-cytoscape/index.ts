@@ -1,1 +1,0 @@
-export {NgCytoscapeModule} from './app.module';

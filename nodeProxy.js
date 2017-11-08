@@ -102,7 +102,22 @@ function parseCookies (request) {
     return list;
 }
 
+/**
+ * Function for parse cookie inside the header request
+ * Notice: check only PHPSESSID, in future add new version of ID 
+ * @param {string} request 
+ */
+function parseSetCookies (request) {
+    var list = {},
+        rc = request.headers['set-cookie'][0];
 
+    rc && rc.split(';').forEach(function( cookie ) {
+        var parts = cookie.split('=');
+        list[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+
+    return list;
+}
 
 
 
@@ -163,6 +178,7 @@ function onRequest(client_req, client_res) {
         }
     
     }else{
+        global.found=-1;
         // if you don't have any cookie defined inside the request of client, take loadBalancer Algorithm 
         if(debug)
             console.log("cookie doesn't defined");
@@ -213,13 +229,23 @@ function onRequest(client_req, client_res) {
          * This cookie will be set in the client browser and when it makes a request to the webswitch
          * send all cookie contained. 
          */
+        
         if(serverResponse.headers['set-cookie']!=undefined){
-            
+            var parse = parseSetCookies(serverResponse);
+            console.log('set-cookie');
+           
             var headerserv = serverResponse.headers['set-cookie'].toString();
             headerserv = headerserv.split(';');
             statisticServer[iServer].session++;
-            headerserv.push('PROXYSESS='+sessionID+"."+settingsJson.hosts[iServer].name);
+            console.log(parse);
+            if(parse['Max-Age']==0){
+                console.log(parse['Max-Age']);
+                headerserv.push('PROXYSESS='+sessionID+";Max-age=0");
+            }else{
+                headerserv.push('PROXYSESS='+sessionID+"."+settingsJson.hosts[iServer].name+";Max-age=10800");
+            }
             serverResponse.headers['set-cookie'] = headerserv;
+
 
         }
 

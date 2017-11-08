@@ -1,7 +1,6 @@
 <?php
 session_start();
-session_unset();
-$_SESSION['pippo']='pippo'
+$_SESSION['angelo']="bacca"
 ?>
 <!DOCTYPE html>
 <html>

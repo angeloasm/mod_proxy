@@ -11,5 +11,6 @@ echo '<br /><a href="page2.php">page 2</a>';
 ?>
 SERVER 2 Elimino
 <a href="page2.php"><?php echo $_SESSION['angelo'];?></a>
+<a href="page3.php">Destroy</a>
 </body>
 </html>

@@ -1,0 +1,1 @@
+{"hosts":[{"ip":"127.0.0.1","port":8989,"name":"svr1"},{"ip":"127.0.0.1","port":9090,"name":"svr23"}],"loadBalancer":"modules/LoadBalancer/RR.js"}

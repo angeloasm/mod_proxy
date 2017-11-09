@@ -12,7 +12,7 @@ let https = require('http').Server(app);
 global.io = require('socket.io')(https);
 
 // variable for readWrite settings 
-var fileReader = require('./readWriteSettings')
+var fileReader = require('./modules/Settings/readWriteSettings')
 // define the port where proxy is available
 var port = 80;
 // requested variable 
@@ -46,7 +46,7 @@ global.found=-1;
 */
 global.debug = false;
 
-let x = require('./RTCSocket');
+let x = require('./modules/Network/RTCSocket');
 
 
 /**

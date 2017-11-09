@@ -9,7 +9,7 @@ module.exports ={
      */
     readfile: function(){
         var dataFile;
-        dataFile=fs.readFileSync('./settings.json', 'utf8'); 
+        dataFile=fs.readFileSync('./conf/settings.json', 'utf8'); 
         return dataFile;
     }, 
     /**

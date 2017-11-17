@@ -5,7 +5,9 @@
 // Request library 
 var http = require('http');
 global.fs = require('fs');
-
+var crypto = require('crypto'),
+algorithm = 'aes-256-ctr',
+password = 'axc1011';
 
 let app = require('express')();
 let https = require('http').Server(app);
@@ -84,6 +86,21 @@ function loadSettings(){
     loadBalanceFile = global.settingsJson.loadBalancer;
 }
 
+function encrypt(text){
+    var cipher = crypto.createCipher(algorithm,password)
+    var crypted = cipher.update(text,'utf8','hex')
+    crypted += cipher.final('hex');
+    return crypted;
+}
+
+function decrypt(text){
+    var decipher = crypto.createDecipher(algorithm,password)
+    var dec = decipher.update(text,'hex','utf8')
+      dec += decipher.final('utf8');
+    return dec;
+    }
+    
+
 
 /**
  * Function for parse cookie inside the header request
@@ -130,9 +147,7 @@ function parseSetCookies (request) {
 function onRequest(client_req, client_res) {
 
     // Request for generate a unique id session
-    const crypto = require("crypto");
-    //generate the session id 
-    const sessionID = crypto.randomBytes(16).toString("hex");
+    
     
     /* variable for cookie session identifier */
     var cookieList = parseCookies(client_req);
@@ -153,14 +168,14 @@ function onRequest(client_req, client_res) {
     // if exists php session
     if(cookieList['PROXYSESS']!=undefined){
         // variable for split session user 
-        var svrProxy = cookieList['PROXYSESS'].split('.');
+        var svrProxy = decrypt(cookieList['PROXYSESS']);
         
         global.found = -1; // setting is found to -1 
         settingsJson.hosts.forEach(function(element,index){
             /**
              * For each element control if exists the name in the list of server connected to the web switch
              */
-            if(svrProxy[1]==element.name){
+            if(svrProxy==element.name){
                 iServer = index; //Update the index server 
                 global.found = 0; // Set variable found to true
                 return ; // exit from cycle
@@ -232,17 +247,15 @@ function onRequest(client_req, client_res) {
         
         if(serverResponse.headers['set-cookie']!=undefined){
             var parse = parseSetCookies(serverResponse);
-            console.log('set-cookie');
            
             var headerserv = serverResponse.headers['set-cookie'].toString();
             headerserv = headerserv.split(';');
             statisticServer[iServer].session++;
-            console.log(parse);
             if(parse['Max-Age']==0){
                 console.log(parse['Max-Age']);
                 headerserv.push('PROXYSESS='+sessionID+";Max-age=0");
             }else{
-                headerserv.push('PROXYSESS='+sessionID+"."+settingsJson.hosts[iServer].name+";Max-age=10800");
+                headerserv.push('PROXYSESS='+encrypt(settingsJson.hosts[iServer].name)+";Max-age=10800");
             }
             serverResponse.headers['set-cookie'] = headerserv;
 
